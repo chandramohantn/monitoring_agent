@@ -96,14 +96,16 @@ test-application/
  - Application errors: Check logs with kubectl logs <pod-name>
 
 ### Debug commands:
-#### Check pod status
+```
+# Check pod status
  - kubectl get pods
 
-#### View pod logs
+# View pod logs
  - kubectl logs -l app=frontend
 
-#### Check service endpoints
+# Check service endpoints
  - kubectl get endpoints
 
-#### Verify Prometheus service discovery
+# Verify Prometheus service discovery
  - kubectl get pods -n monitoring -l app.kubernetes.io/name=prometheus
+```
