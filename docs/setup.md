@@ -12,8 +12,10 @@ This guide will help you create and deploy a dummy Python application with front
 ## Create Test Application Structure
 
 ### Create the application directory structure
+```
 mkdir -p test-application/{frontend,backend,kubernetes,load-generator,grafana-dashboards}
 cd test-application
+```
 
 ### Project structure should look like:
 ```
