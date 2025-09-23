@@ -16,6 +16,7 @@ mkdir -p test-application/{frontend,backend,kubernetes,load-generator,grafana-da
 cd test-application
 
 ### Project structure should look like:
+```
 test-application/
 ├── frontend/
 │   ├── app.py
@@ -35,6 +36,7 @@ test-application/
 │   └── load_test.py
 └── grafana-dashboards/
     └── application-metrics.json
+```
 
 ## Create the Backend Service
 
