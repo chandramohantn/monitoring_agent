@@ -1,0 +1,49 @@
+{
+    "dashboard": {
+      "title": "Test Application Metrics",
+      "panels": [
+        {
+          "title": "Request Rate",
+          "type": "stat",
+          "targets": [
+            {
+              "expr": "rate(frontend_request_total[5m])",
+              "legendFormat": "Frontend"
+            },
+            {
+              "expr": "rate(backend_request_total[5m])", 
+              "legendFormat": "Backend"
+            }
+          ]
+        },
+        {
+          "title": "Error Rate",
+          "type": "stat", 
+          "targets": [
+            {
+              "expr": "rate(frontend_error_total[5m])",
+              "legendFormat": "Frontend Errors"
+            },
+            {
+              "expr": "rate(backend_error_total[5m])",
+              "legendFormat": "Backend Errors"
+            }
+          ]
+        },
+        {
+          "title": "Latency (95th percentile)",
+          "type": "graph",
+          "targets": [
+            {
+              "expr": "histogram_quantile(0.95, rate(frontend_request_latency_seconds_bucket[5m]))",
+              "legendFormat": "Frontend Latency"
+            },
+            {
+              "expr": "histogram_quantile(0.95, rate(backend_request_latency_seconds_bucket[5m]))",
+              "legendFormat": "Backend Latency"
+            }
+          ]
+        }
+      ]
+    }
+  }
