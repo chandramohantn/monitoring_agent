@@ -7,7 +7,7 @@ from concurrent.futures import ThreadPoolExecutor
 import subprocess
 
 class LoadGenerator:
-    def __init__(self, base_url, host_header="test-app.local", num_users=10):
+    def __init__(self, base_url, host_header="monitoring-agent-app.local", num_users=10):
         self.base_url = base_url
         self.host_header = host_header
         self.num_users = num_users
@@ -84,5 +84,5 @@ if __name__ == "__main__":
     minikube_ip = get_minikube_ip()
     base_url = f"http://{minikube_ip}"  # Ingress controller IP
     
-    generator = LoadGenerator(base_url, host_header="test-app.local", num_users=5)
+    generator = LoadGenerator(base_url, host_header="monitoring-agent-app.local", num_users=5)
     generator.start()
