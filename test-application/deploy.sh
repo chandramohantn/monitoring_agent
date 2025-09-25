@@ -49,13 +49,13 @@ fi
 MINIKUBE_IP=$(minikube ip)
 echo "Minikube IP: $MINIKUBE_IP"
 
-# Update /etc/hosts (requires sudo)
-echo "Updating /etc/hosts to map monitoring-agent-app.local to $MINIKUBE_IP"
-if grep -q "monitoring-agent-app.local" /etc/hosts; then
-    sudo sed -i.bak "s/.*monitoring-agent-app.local/$MINIKUBE_IP monitoring-agent-app.local/" /etc/hosts
-else
-    echo "$MINIKUBE_IP monitoring-agent-app.local" | sudo tee -a /etc/hosts
-fi
+# # Update /etc/hosts (requires sudo)
+# echo "Updating /etc/hosts to map monitoring-agent-app.local to $MINIKUBE_IP"
+# if grep -q "monitoring-agent-app.local" /etc/hosts; then
+#     sudo sed -i.bak "s/.*monitoring-agent-app.local/$MINIKUBE_IP monitoring-agent-app.local/" /etc/hosts
+# else
+#     echo "$MINIKUBE_IP monitoring-agent-app.local" | sudo tee -a /etc/hosts
+# fi
 
 echo ""
 echo "Application URLs:"
