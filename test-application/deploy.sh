@@ -2,13 +2,7 @@
 
 set -e  # Exit on error
 
-echo "Building and deploying test application with Ingress..."
-
-# Enable ingress if not already enabled
-if ! minikube addons list | grep -q "ingress.*enabled"; then
-    echo "Enabling Ingress addon..."
-    minikube addons enable ingress
-fi
+echo "Building and deploying test application with NodePort..."
 
 # Build Docker images
 echo "Building Docker images..."
@@ -20,48 +14,35 @@ echo "Loading images into minikube..."
 minikube image load backend:latest
 minikube image load frontend:latest
 
-# Deploy to Kubernetes
+# Deploy to Kubernetes (excluding ingress)
 echo "Deploying to Kubernetes..."
-kubectl apply -f kubernetes/
+kubectl apply -f kubernetes/backend-deployment.yaml
+kubectl apply -f kubernetes/backend-service.yaml
+kubectl apply -f kubernetes/frontend-deployment.yaml
+kubectl apply -f kubernetes/frontend-service.yaml
 
 # Wait for pods to be ready
 echo "Waiting for pods to be ready..."
 kubectl wait --for=condition=ready pod -l app=monitoring-agent-app --timeout=120s
 kubectl wait --for=condition=ready pod -l app=backend --timeout=120s
 
-# Wait for ingress to be available
-echo "Waiting for ingress controller..."
-sleep 30  # Give ingress controller time to process the new ingress
+# Wait for services to be ready
+echo "Waiting for services to be ready..."
+sleep 10
 
-# Start minikube tunnel for ingress access
-echo "Starting minikube tunnel for ingress access..."
-if ! pgrep -f "minikube tunnel" > /dev/null; then
-    echo "Starting minikube tunnel in background..."
-    minikube tunnel > /dev/null 2>&1 &
-    TUNNEL_PID=$!
-    echo "Minikube tunnel started with PID: $TUNNEL_PID"
-    sleep 10  # Give tunnel time to establish
-else
-    echo "Minikube tunnel already running"
-fi
-
-# Get minikube IP and update /etc/hosts
+# Get minikube IP and NodePort
 MINIKUBE_IP=$(minikube ip)
+NODEPORT=$(kubectl get service monitoring-agent-app -o jsonpath='{.spec.ports[0].nodePort}')
 echo "Minikube IP: $MINIKUBE_IP"
-
-# # Update /etc/hosts (requires sudo)
-# echo "Updating /etc/hosts to map monitoring-agent-app.local to $MINIKUBE_IP"
-# if grep -q "monitoring-agent-app.local" /etc/hosts; then
-#     sudo sed -i.bak "s/.*monitoring-agent-app.local/$MINIKUBE_IP monitoring-agent-app.local/" /etc/hosts
-# else
-#     echo "$MINIKUBE_IP monitoring-agent-app.local" | sudo tee -a /etc/hosts
-# fi
+echo "Frontend NodePort: $NODEPORT"
 
 echo ""
 echo "Application URLs:"
-echo "  Frontend:      http://monitoring-agent-app.local/"
-echo "  Backend API:   http://monitoring-agent-app.local/api/data"
-echo "  Frontend Metrics: http://monitoring-agent-app.local/metrics"
-echo "  Backend Metrics:  http://monitoring-agent-app.local/backend-metrics"
+echo "  Frontend:      http://$MINIKUBE_IP:$NODEPORT/"
+echo "  Frontend Metrics: http://$MINIKUBE_IP:$NODEPORT/metrics"
+echo ""
+echo "Backend is internal only. To access backend:"
+echo "  kubectl port-forward service/backend-service 8081:5000"
+echo "  Then: http://localhost:8081/api/data"
 echo ""
 echo "Deployment complete!"
