@@ -15,31 +15,54 @@ minikube image load backend:latest
 minikube image load frontend:latest
 
 # Deploy to Kubernetes (excluding ingress)
-echo "Deploying to Kubernetes..."
-kubectl apply -f kubernetes/backend-deployment.yaml
-kubectl apply -f kubernetes/backend-service.yaml
-kubectl apply -f kubernetes/frontend-deployment.yaml
-kubectl apply -f kubernetes/frontend-service.yaml
+echo "Deploying application services..."
+kubectl apply -f kubernetes/deployments/backend-deployment.yaml
+kubectl apply -f kubernetes/services/backend-service.yaml
+kubectl apply -f kubernetes/deployments/frontend-deployment.yaml
+kubectl apply -f kubernetes/services/frontend-service.yaml
+
+# Deploy monitoring stack
+echo "Deploying monitoring stack..."
+kubectl apply -f kubernetes/configmaps/prometheus-configmap.yaml
+kubectl apply -f kubernetes/deployments/prometheus-deployment.yaml
+kubectl apply -f kubernetes/services/prometheus-service.yaml
+kubectl apply -f kubernetes/configmaps/grafana-configmap.yaml
+kubectl apply -f kubernetes/configmaps/grafana-dashboard-configmap.yaml
+kubectl apply -f kubernetes/deployments/grafana-deployment.yaml
+kubectl apply -f kubernetes/services/grafana-service.yaml
 
 # Wait for pods to be ready
-echo "Waiting for pods to be ready..."
+echo "Waiting for application pods to be ready..."
 kubectl wait --for=condition=ready pod -l app=monitoring-agent-app --timeout=120s
 kubectl wait --for=condition=ready pod -l app=backend --timeout=120s
+
+echo "Waiting for monitoring pods to be ready..."
+kubectl wait --for=condition=ready pod -l app=prometheus --timeout=120s
+kubectl wait --for=condition=ready pod -l app=grafana --timeout=120s
 
 # Wait for services to be ready
 echo "Waiting for services to be ready..."
 sleep 10
 
-# Get minikube IP and NodePort
+# Get minikube IP and NodePorts
 MINIKUBE_IP=$(minikube ip)
-NODEPORT=$(kubectl get service monitoring-agent-app -o jsonpath='{.spec.ports[0].nodePort}')
+FRONTEND_NODEPORT=$(kubectl get service monitoring-agent-app -o jsonpath='{.spec.ports[0].nodePort}')
+PROMETHEUS_NODEPORT=$(kubectl get service prometheus-service -o jsonpath='{.spec.ports[0].nodePort}')
+GRAFANA_NODEPORT=$(kubectl get service grafana-service -o jsonpath='{.spec.ports[0].nodePort}')
+
 echo "Minikube IP: $MINIKUBE_IP"
-echo "Frontend NodePort: $NODEPORT"
+echo "Frontend NodePort: $FRONTEND_NODEPORT"
+echo "Prometheus NodePort: $PROMETHEUS_NODEPORT"
+echo "Grafana NodePort: $GRAFANA_NODEPORT"
 
 echo ""
 echo "Application URLs:"
-echo "  Frontend:      http://$MINIKUBE_IP:$NODEPORT/"
-echo "  Frontend Metrics: http://$MINIKUBE_IP:$NODEPORT/metrics"
+echo "  Frontend:      http://$MINIKUBE_IP:$FRONTEND_NODEPORT/"
+echo "  Frontend Metrics: http://$MINIKUBE_IP:$FRONTEND_NODEPORT/metrics"
+echo ""
+echo "Monitoring URLs:"
+echo "  Prometheus:    http://$MINIKUBE_IP:$PROMETHEUS_NODEPORT/"
+echo "  Grafana:       http://$MINIKUBE_IP:$GRAFANA_NODEPORT/ (admin/admin)"
 echo ""
 echo "Backend is internal only. To access backend:"
 echo "  kubectl port-forward service/backend-service 8081:5000"
