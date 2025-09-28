@@ -1,0 +1,55 @@
+# ETL Pipeline Configuration
+# This configuration file defines the settings for the MVP ETL pipeline
+
+# Extract configuration
+extract:
+  prometheus_url: "http://localhost:9090"
+  timeout: 30
+  retry_attempts: 3
+
+# Transform configuration
+transform:
+  valid_metrics:
+    - "up"
+    - "http_requests_total"
+    - "http_request_duration_seconds_bucket"
+    - "rate(http_requests_total[5m])"
+    - "histogram_quantile(0.95, rate(http_request_duration_seconds_bucket[5m]))"
+    - "rate(http_requests_total{status=~\"5..\"}[5m])"
+  
+  data_cleaning:
+    remove_nulls: true
+    validate_timestamps: true
+    remove_duplicates: true
+    validate_value_ranges: true
+
+# Load configuration
+load:
+  influxdb:
+    url: "http://localhost:8086"
+    token: "your-influxdb-token-here"
+    org: "monitoring"
+    bucket: "health_metrics"
+    timeout: 30
+    batch_size: 1000
+
+# Pipeline configuration
+pipeline:
+  interval_seconds: 300  # 5 minutes
+  log_level: "INFO"
+  max_retries: 3
+  retry_delay: 60  # seconds
+  
+# Logging configuration
+logging:
+  level: "INFO"
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+  file: "logs/etl_pipeline.log"
+  max_size: "10MB"
+  backup_count: 5
+
+# Monitoring configuration
+monitoring:
+  enable_metrics: true
+  metrics_port: 8080
+  health_check_interval: 60  # seconds

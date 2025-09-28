@@ -17,6 +17,10 @@ dependencies = [
     "chaos-mesh>=1.2.13",
     "kubernetes>=25.0.0",
     "locust>=2.0.0",
+    # ETL Pipeline Dependencies
+    "requests>=2.31.0",
+    "influxdb-client>=1.38.0",
+    "pyyaml>=6.0.0",
 ]
 
 [build-system]
