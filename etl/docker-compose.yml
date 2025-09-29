@@ -1,0 +1,146 @@
+version: '3.9'
+
+services:
+  # InfluxDB 2.x for time series data storage
+  influxdb:
+    image: influxdb:2.7
+    container_name: etl-influxdb
+    restart: unless-stopped
+    ports:
+      - "8086:8086"
+    environment:
+      # InfluxDB initialization
+      - DOCKER_INFLUXDB_INIT_MODE=setup
+      - DOCKER_INFLUXDB_INIT_USERNAME=${INFLUXDB_USERNAME:-admin}
+      - DOCKER_INFLUXDB_INIT_PASSWORD=${INFLUXDB_PASSWORD:-admin123}
+      - DOCKER_INFLUXDB_INIT_ORG=${INFLUXDB_ORG:-monitoring}
+      - DOCKER_INFLUXDB_INIT_BUCKET=${INFLUXDB_BUCKET:-health_metrics}
+      - DOCKER_INFLUXDB_INIT_ADMIN_TOKEN=${INFLUXDB_TOKEN:-monitoring-token-123}
+      # Performance settings
+      - INFLUXDB_DATA_QUERY_LOG_ENABLED=true
+      - INFLUXDB_DATA_CACHE_MAX_MEMORY_SIZE=1g
+      - INFLUXDB_DATA_CACHE_SNAPSHOT_MEMORY_SIZE=25m
+    volumes:
+      - influxdb-data:/var/lib/influxdb2
+      - influxdb-config:/etc/influxdb2
+    networks:
+      - etl-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8086/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Grafana for visualization
+  grafana:
+    image: grafana/grafana:10.4.0
+    container_name: etl-grafana
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_USER=${GRAFANA_USERNAME:-admin}
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:-admin123}
+      - GF_INSTALL_PLUGINS=grafana-influxdb-datasource
+      - GF_DATABASE_TYPE=sqlite3
+      - GF_DATABASE_PATH=/var/lib/grafana/grafana.db
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning
+      - ./grafana/dashboards:/var/lib/grafana/dashboards
+    networks:
+      - etl-network
+    depends_on:
+      influxdb:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:3000/api/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # ETL Pipeline
+  etl:
+    build:
+      context: ..
+      dockerfile: etl/Dockerfile
+    container_name: etl-pipeline
+    restart: unless-stopped
+    environment:
+      # InfluxDB connection
+      - INFLUXDB_URL=http://influxdb:8086
+      - INFLUXDB_TOKEN=${INFLUXDB_TOKEN:-monitoring-token-123}
+      - INFLUXDB_ORG=${INFLUXDB_ORG:-monitoring}
+      - INFLUXDB_BUCKET=${INFLUXDB_BUCKET:-health_metrics}
+      # Prometheus connection (adjust if Prometheus is running elsewhere)
+      - PROMETHEUS_URL=${PROMETHEUS_URL:-http://host.docker.internal:9090}
+      # ETL configuration
+      - ETL_LOG_LEVEL=${ETL_LOG_LEVEL:-INFO}
+      - ETL_INTERVAL_SECONDS=${ETL_INTERVAL_SECONDS:-300}
+      - ETL_MAX_RETRIES=${ETL_MAX_RETRIES:-3}
+    volumes:
+      - ./config/etl.yaml:/app/config/etl.yaml:ro
+      - etl-logs:/app/logs
+    networks:
+      - etl-network
+    depends_on:
+      influxdb:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import requests; requests.get('http://localhost:8080/health', timeout=5)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    # Resource limits
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+        reservations:
+          cpus: '0.1'
+          memory: 128M
+
+  # Telegraf for additional metrics collection (optional)
+  telegraf:
+    image: telegraf:1.28
+    container_name: etl-telegraf
+    restart: unless-stopped
+    environment:
+      - INFLUXDB_URL=http://influxdb:8086
+      - INFLUXDB_TOKEN=${INFLUXDB_TOKEN:-monitoring-token-123}
+      - INFLUXDB_ORG=${INFLUXDB_ORG:-monitoring}
+      - INFLUXDB_BUCKET=${INFLUXDB_BUCKET:-health_metrics}
+    volumes:
+      - ./telegraf/telegraf.conf:/etc/telegraf/telegraf.conf:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /sys:/host/sys:ro
+      - /proc:/host/proc:ro
+      - /etc:/host/etc:ro
+    networks:
+      - etl-network
+    depends_on:
+      influxdb:
+        condition: service_healthy
+    profiles:
+      - telegraf  # Only start with --profile telegraf
+
+volumes:
+  influxdb-data:
+    driver: local
+  influxdb-config:
+    driver: local
+  grafana-data:
+    driver: local
+  etl-logs:
+    driver: local
+
+networks:
+  etl-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16

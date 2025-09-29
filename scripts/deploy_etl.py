@@ -85,29 +85,6 @@ def check_dependencies() -> bool:
     return True
 
 
-def create_directories() -> None:
-    """
-    Create necessary directory structure for the ETL pipeline.
-    """
-    logger = logging.getLogger(__name__)
-    
-    directories = [
-        'logs',
-        'data',
-        'config',
-        'src/etl',
-        'scripts',
-        'tests'
-    ]
-    
-    for directory in directories:
-        try:
-            os.makedirs(directory, exist_ok=True)
-            logger.info(f"✓ Created directory: {directory}")
-        except Exception as e:
-            logger.error(f"✗ Failed to create directory {directory}: {e}")
-
-
 def check_configuration() -> bool:
     """
     Check if configuration files exist and are valid.
@@ -292,9 +269,6 @@ def main():
     # Check Python version
     if not check_python_version():
         sys.exit(1)
-    
-    # Create directories
-    create_directories()
     
     # Check dependencies
     if not check_dependencies():
